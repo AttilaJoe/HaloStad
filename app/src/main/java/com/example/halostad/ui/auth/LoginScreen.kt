@@ -25,7 +25,13 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
 import androidx.navigation.NavController
 import com.example.halostad.R
 import com.example.halostad.ui.navigation.Screen
@@ -48,6 +54,39 @@ fun LoginScreen(
     // warna-warna utama
     val accentGreen = Color(0xFF2D8A5B)     // hijau utama
     val goldYellow = Color(0xFFF4B000)      // kuning gold untuk "Stad"
+    // === LAUNCHER GOOGLE SIGN IN ===
+    // 1. Konfigurasi Google Sign In
+    // Pastikan "default_web_client_id" ada (otomatis dari google-services.json)
+    val gso = remember {
+        GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(context.getString(R.string.default_web_client_id))
+            .requestEmail()
+            .build()
+    }
+
+    val googleSignInClient = remember {
+        GoogleSignIn.getClient(context, gso)
+    }
+
+    // 2. Launcher untuk menangani hasil dari Intent Google Sign In
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+        try {
+            val account = task.getResult(ApiException::class.java)
+            val idToken = account.idToken
+            if (idToken != null) {
+                // 3. Kirim ID Token ke ViewModel untuk login ke Firebase
+                viewModel.loginWithGoogle(idToken)
+            } else {
+                Toast.makeText(context, "Google Sign-In gagal: ID Token null", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: ApiException) {
+            Toast.makeText(context, "Google Sign-In error: ${e.statusCode}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     val disabledGrey = Color(0xFFBDBDBD)
 
     LaunchedEffect(uiState) {
@@ -281,7 +320,10 @@ fun LoginScreen(
 
                 // === TOMBOL GOOGLE ===
                 OutlinedButton(
-                    onClick = { /* TODO: Google Sign-In */ },
+                    onClick = {
+                        val signInIntent = googleSignInClient.signInIntent
+                        launcher.launch(signInIntent)
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),

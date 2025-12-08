@@ -11,6 +11,9 @@ interface AuthRepository {
     // Fungsi register juga mengembalikan Flow UiState berisi data User yang baru dibuat
     suspend fun register(name: String, email: String, pass: String, role: String): Flow<UiState<User>>
 
+    // Google Sign In
+    suspend fun loginWithGoogle(idToken: String): Flow<UiState<User>>
+
     fun logout()
 
     // Cek apakah user sedang login (untuk auto-login saat buka aplikasi)

@@ -49,6 +49,15 @@ class AuthViewModel : ViewModel() {
         }
     }
 
+    // --- FUNGSI LOGIN GOOGLE ---
+    fun loginWithGoogle(idToken: String) {
+        viewModelScope.launch {
+            repository.loginWithGoogle(idToken).collect { state ->
+                _authState.value = state
+            }
+        }
+    }
+
     // Fungsi untuk mereset state (misal setelah error ditampilkan, kita reset jadi null)
     fun resetState() {
         _authState.value = null

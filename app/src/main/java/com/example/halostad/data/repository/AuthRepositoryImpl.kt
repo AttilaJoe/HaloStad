@@ -81,6 +81,55 @@ class AuthRepositoryImpl(
         awaitClose { }
     }
 
+    // --- LOGIKA LOGIN GOOGLE ---
+    override suspend fun loginWithGoogle(idToken: String): Flow<UiState<User>> = callbackFlow {
+        try {
+            trySend(UiState.Loading)
+
+            // 1. Buat credential dari ID Token
+            val credential = com.google.firebase.auth.GoogleAuthProvider.getCredential(idToken, null)
+            
+            // 2. Sign In ke Firebase
+            val authResult = auth.signInWithCredential(credential).await()
+            val firebaseUser = authResult.user
+            val uid = firebaseUser?.uid
+
+            if (uid != null) {
+                // 3. Cek apakah dokumen user sudah ada di Firestore
+                val docRef = firestore.collection("users").document(uid)
+                val docSnapshot = docRef.get().await()
+
+                if (docSnapshot.exists()) {
+                    // User sudah terdaftar, ambil datanya
+                    val existingUser = docSnapshot.toObject(User::class.java)
+                    if (existingUser != null) {
+                        trySend(UiState.Success(existingUser))
+                    } else {
+                        trySend(UiState.Error("Gagal mengambil data user."))
+                    }
+                } else {
+                    // User baru (belum ada di Firestore), buatkan dokumen baru
+                    val newUser = User(
+                        id = uid,
+                        name = firebaseUser.displayName ?: "No Name",
+                        email = firebaseUser.email ?: "",
+                        role = "user", // Default role
+                        photoUrl = firebaseUser.photoUrl?.toString() ?: "",
+                        gender = ""
+                    )
+                    docRef.set(newUser).await()
+                    trySend(UiState.Success(newUser))
+                }
+            } else {
+                trySend(UiState.Error("Google Sign-In gagal: UID tidak ditemukan"))
+            }
+
+        } catch (e: Exception) {
+            trySend(UiState.Error(e.localizedMessage ?: "Login Google Gagal"))
+        }
+        awaitClose { }
+    }
+
     override suspend fun updateProfile(name: String, photoBase64: String?): Flow<UiState<Boolean>> = callbackFlow {
         trySend(UiState.Loading)
         try {
