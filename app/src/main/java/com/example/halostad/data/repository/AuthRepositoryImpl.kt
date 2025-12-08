@@ -81,7 +81,6 @@ class AuthRepositoryImpl(
         awaitClose { }
     }
 
-    // --- LOGIKA LOGIN GOOGLE ---
     override suspend fun loginWithGoogle(idToken: String): Flow<UiState<User>> = callbackFlow {
         try {
             trySend(UiState.Loading)
@@ -126,6 +125,32 @@ class AuthRepositoryImpl(
 
         } catch (e: Exception) {
             trySend(UiState.Error(e.localizedMessage ?: "Login Google Gagal"))
+        }
+        awaitClose { }
+    }
+
+    // --- RESET PASSWORD ---
+    override suspend fun resetPassword(email: String): Flow<UiState<Boolean>> = callbackFlow {
+        try {
+            trySend(UiState.Loading)
+
+            // 1. Cek dulu di Firestore apakah email terdaftar
+            val querySnapshot = firestore.collection("users")
+                .whereEqualTo("email", email)
+                .get()
+                .await()
+
+            if (!querySnapshot.isEmpty) {
+                // 2. Jika ada, kirim email reset password
+                auth.sendPasswordResetEmail(email).await()
+                trySend(UiState.Success(true))
+            } else {
+                // 3. Jika tidak ada
+                trySend(UiState.Error("Email tidak ditemukan. Silakan daftar terlebih dahulu."))
+            }
+
+        } catch (e: Exception) {
+            trySend(UiState.Error(e.localizedMessage ?: "Gagal mengirim email reset"))
         }
         awaitClose { }
     }

@@ -16,8 +16,13 @@ class AuthViewModel : ViewModel() {
 
     // --- STATE UNTUK HASIL LOGIN/REGISTER ---
     // StateFlow untuk memantau apakah proses sedang Loading, Sukses, atau Error
+    // StateFlow untuk memantau apakah proses sedang Loading, Sukses, atau Error
     private val _authState = MutableStateFlow<UiState<User>?>(null)
     val authState: StateFlow<UiState<User>?> = _authState
+
+    // State khusus untuk Reset Password
+    private val _resetPasswordState = MutableStateFlow<UiState<Boolean>?>(null)
+    val resetPasswordState: StateFlow<UiState<Boolean>?> = _resetPasswordState
 
     // --- FUNGSI LOGIN ---
     fun login(email: String, pass: String) {
@@ -58,8 +63,22 @@ class AuthViewModel : ViewModel() {
         }
     }
 
+    // --- FUNGSI RESET PASSWORD ---
+    fun resetPassword(email: String) {
+        if (email.isEmpty()) {
+            _resetPasswordState.value = UiState.Error("Email harus diisi.")
+            return
+        }
+        viewModelScope.launch {
+            repository.resetPassword(email).collect { state ->
+                _resetPasswordState.value = state
+            }
+        }
+    }
+
     // Fungsi untuk mereset state (misal setelah error ditampilkan, kita reset jadi null)
     fun resetState() {
         _authState.value = null
+        _resetPasswordState.value = null
     }
 }

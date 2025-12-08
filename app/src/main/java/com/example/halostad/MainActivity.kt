@@ -97,6 +97,9 @@ fun MainApp() {
         ) {
             composable(Screen.Login.route) { LoginScreen(navController) }
             composable(Screen.Register.route) { RegisterScreen(navController) }
+            composable(Screen.ForgotPassword.route) { 
+                com.example.halostad.ui.auth.ForgotPasswordScreen(navController) 
+            }
 
             // Halaman Utama (Ada Bottom Bar)
             composable(Screen.Home.route) { HomeScreen(navController) }

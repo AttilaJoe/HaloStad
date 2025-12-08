@@ -250,7 +250,7 @@ fun LoginScreen(
                         .padding(top = 4.dp)
                 ) {
                     TextButton(
-                        onClick = { /* TODO: aksi lupa sandi */ },
+                        onClick = { navController.navigate(Screen.ForgotPassword.route) },
                         modifier = Modifier.align(Alignment.CenterEnd),
                         contentPadding = PaddingValues(0.dp)
                     ) {

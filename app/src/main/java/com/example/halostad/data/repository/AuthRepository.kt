@@ -14,6 +14,9 @@ interface AuthRepository {
     // Google Sign In
     suspend fun loginWithGoogle(idToken: String): Flow<UiState<User>>
 
+    // Reset Password
+    suspend fun resetPassword(email: String): Flow<UiState<Boolean>>
+
     fun logout()
 
     // Cek apakah user sedang login (untuk auto-login saat buka aplikasi)
