@@ -43,6 +43,15 @@ import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 import androidx.compose.foundation.ExperimentalFoundationApi
+import android.content.IntentSender
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.rememberLauncherForActivityResult
+import com.google.android.gms.common.api.ResolvableApiException
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.LocationSettingsRequest
+import com.google.android.gms.location.Priority
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
@@ -69,10 +78,56 @@ fun HomeScreen(
         )
     )
 
-    // Ambil lokasi & jadwal saat izin sudah dikasih
+    // Launcher untuk menangani hasil dialog "Turn on Location"
+    val settingResultRequest = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            // User menekan "OK", lokasi aktif -> Ambil data
+            viewModel.getUserLocationAndPrayerTimes(context)
+        } else {
+            // User menekan "No Thanks" atau batal
+            // Opsional: Tampilkan pesan manual atau biarkan tombol refresh yang bekerja
+        }
+    }
+
+    // Fungsi untuk Cek apakah GPS Nyala
+    fun checkLocationSetting(
+        onEnabled: () -> Unit,
+        onDisabled: (IntentSenderRequest) -> Unit
+    ) {
+        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000).build()
+        val builder = LocationSettingsRequest.Builder().addLocationRequest(locationRequest)
+        val client = LocationServices.getSettingsClient(context)
+        val task = client.checkLocationSettings(builder.build())
+
+        task.addOnSuccessListener {
+            onEnabled()
+        }
+
+        task.addOnFailureListener { exception ->
+            if (exception is ResolvableApiException) {
+                try {
+                    val intentSenderRequest = IntentSenderRequest.Builder(exception.resolution).build()
+                    onDisabled(intentSenderRequest)
+                } catch (sendEx: IntentSender.SendIntentException) {
+                    // Ignore
+                }
+            }
+        }
+    }
+
+    // Ambil lokasi & jadwal saat izin sudah dikasih DAN GPS nyala
     LaunchedEffect(key1 = locationPermissionsState.allPermissionsGranted) {
         if (locationPermissionsState.allPermissionsGranted) {
-            viewModel.getUserLocationAndPrayerTimes(context)
+            checkLocationSetting(
+                onEnabled = {
+                    viewModel.getUserLocationAndPrayerTimes(context)
+                },
+                onDisabled = { intentSenderRequest ->
+                    settingResultRequest.launch(intentSenderRequest)
+                }
+            )
         } else {
             locationPermissionsState.launchMultiplePermissionRequest()
         }
@@ -130,7 +185,14 @@ fun HomeScreen(
                 IconButton(
                     onClick = {
                         if (locationPermissionsState.allPermissionsGranted) {
-                            viewModel.getUserLocationAndPrayerTimes(context)
+                            checkLocationSetting(
+                                onEnabled = {
+                                    viewModel.getUserLocationAndPrayerTimes(context)
+                                },
+                                onDisabled = { intentSenderRequest ->
+                                    settingResultRequest.launch(intentSenderRequest)
+                                }
+                            )
                         } else {
                             locationPermissionsState.launchMultiplePermissionRequest()
                         }
