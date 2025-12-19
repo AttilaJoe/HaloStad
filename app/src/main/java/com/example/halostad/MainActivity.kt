@@ -117,6 +117,9 @@ fun MainApp() {
             composable(Screen.RiwayatTanya.route) {
                 RiwayatTanyaScreen(navController)
             }
+            composable(Screen.Camera.route) {
+                com.example.halostad.ui.components.CameraScreen(navController)
+            }
         }
     }
 }

@@ -20,7 +20,7 @@ object ImageHelper {
         val byteArrays = outputStream.toByteArray()
 
         // 3. Ubah ke String Base64
-        val base64String = Base64.encodeToString(byteArrays, Base64.DEFAULT)
+        val base64String = Base64.encodeToString(byteArrays, Base64.NO_WRAP)
 
         // Tambahkan prefix agar bisa dibaca library gambar (Coil)
         return "data:image/jpeg;base64,$base64String"

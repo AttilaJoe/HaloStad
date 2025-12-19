@@ -115,12 +115,40 @@ fun EditProfileScreen(
         }
     }
 
-    // --- LAUNCHER KAMERA ---
-    val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicturePreview()
-    ) { bitmap ->
-        if (bitmap != null) {
-            selectedBitmap = bitmap
+    // --- DETEKSI HASIL KAMERA DARI CUSTOM CAMERA SCREEN ---
+    val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
+    
+    DisposableEffect(savedStateHandle) {
+        val liveData = savedStateHandle?.getLiveData<String>("camera_result")
+        val observer = androidx.lifecycle.Observer<String> { uriString ->
+            if (uriString != null) {
+                try {
+                    val uri = Uri.parse(uriString)
+                    val bitmap = if (Build.VERSION.SDK_INT < 28) {
+                        @Suppress("DEPRECATION")
+                        MediaStore.Images.Media.getBitmap(context.contentResolver, uri)
+                    } else {
+                        val source = ImageDecoder.createSource(context.contentResolver, uri)
+                        ImageDecoder.decodeBitmap(source)
+                    }
+                    selectedBitmap = bitmap
+                    
+                    // Reset agar tidak terpanggil ganda
+                    savedStateHandle?.remove<String>("camera_result")
+                    
+                    Toast.makeText(context, "Foto berhasil dimuat", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    Toast.makeText(context, "Gagal memuat hasil kamera: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+
+        // Observe menggunakan Lifecycle owner dari screen ini
+        liveData?.observe(navController.currentBackStackEntry!!, observer)
+
+        onDispose {
+            liveData?.removeObserver(observer)
         }
     }
 
@@ -198,7 +226,7 @@ fun EditProfileScreen(
                             bitmap = selectedBitmap!!.asImageBitmap(),
                             contentDescription = null,
                             modifier = Modifier.fillMaxSize().clip(CircleShape)
-                                .border(2.dp, Color.Gray, CircleShape),
+                            .border(2.dp, Color.Gray, CircleShape),
                             contentScale = ContentScale.Crop
                         )
                     } else if (currentImageBitmap != null) {
@@ -206,7 +234,7 @@ fun EditProfileScreen(
                             bitmap = currentImageBitmap!!.asImageBitmap(),
                             contentDescription = null,
                             modifier = Modifier.fillMaxSize().clip(CircleShape)
-                                .border(2.dp, Color.Gray, CircleShape),
+                            .border(2.dp, Color.Gray, CircleShape),
                             contentScale = ContentScale.Crop
                         )
                     } else {
@@ -214,7 +242,7 @@ fun EditProfileScreen(
                             model = "https://ui-avatars.com/api/?name=${name}",
                             contentDescription = null,
                             modifier = Modifier.fillMaxSize().clip(CircleShape)
-                                .border(2.dp, Color.Gray, CircleShape),
+                            .border(2.dp, Color.Gray, CircleShape),
                             contentScale = ContentScale.Crop
                         )
                     }
@@ -252,7 +280,7 @@ fun EditProfileScreen(
             OutlinedButton(
                 onClick = {
                     if (cameraPermissionState.status.isGranted) {
-                        cameraLauncher.launch()
+                        navController.navigate("camera") // Pindah ke Screen.Camera
                     } else {
                         if (cameraPermissionState.status.shouldShowRationale) {
                             Toast.makeText(context, "Izin kamera diperlukan", Toast.LENGTH_LONG).show()

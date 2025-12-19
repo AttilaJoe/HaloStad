@@ -43,29 +43,37 @@ fun ProfileScreen(navController: NavController) {
     // Notifikasi Adzan (dummy)
     var adzanNotif by remember { mutableStateOf(true) }
 
-    LaunchedEffect(Unit) {
-        currentUser?.let { user ->
-            FirebaseFirestore.getInstance().collection("users").document(user.uid)
-                .get()
-                .addOnSuccessListener { doc ->
-                    role = doc.getString("role")?.replaceFirstChar { it.uppercase() } ?: "User"
+    DisposableEffect(Unit) {
+        var listenerRegistration: com.google.firebase.firestore.ListenerRegistration? = null
 
-                    val base64String = doc.getString("photoBase64")
-                    if (!base64String.isNullOrBlank()) {
-                        try {
-                            val cleanBase64 = base64String.substringAfter(",")
-                            val bytes = Base64.decode(cleanBase64, Base64.DEFAULT)
-                            val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                            profileImageBitmap = bmp.asImageBitmap()
-                        } catch (_: Exception) {
-                        }
+        if (currentUser != null) {
+            listenerRegistration = FirebaseFirestore.getInstance().collection("users").document(currentUser.uid)
+                .addSnapshotListener { doc, error ->
+                    if (error != null) {
+                        isLoading = false
+                        return@addSnapshotListener
                     }
 
+                    if (doc != null && doc.exists()) {
+                        role = doc.getString("role")?.replaceFirstChar { it.uppercase() } ?: "User"
+
+                        val base64String = doc.getString("photoBase64")
+                        if (!base64String.isNullOrBlank()) {
+                            try {
+                                val cleanBase64 = base64String.substringAfter(",")
+                                val bytes = Base64.decode(cleanBase64, Base64.DEFAULT)
+                                val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                                profileImageBitmap = bmp.asImageBitmap()
+                            } catch (_: Exception) {
+                            }
+                        }
+                    }
                     isLoading = false
                 }
-                .addOnFailureListener {
-                    isLoading = false
-                }
+        }
+
+        onDispose {
+            listenerRegistration?.remove()
         }
     }
 
